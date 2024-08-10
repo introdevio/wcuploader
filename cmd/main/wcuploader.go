@@ -20,7 +20,6 @@ func main() {
 	result, err := loader.LoadFromCsv(true)
 
 	fmt.Printf("%+v", result)
-
 	if err != nil {
 		log.Fatalln(err)
 	}

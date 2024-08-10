@@ -3,12 +3,14 @@ package uploader
 import (
 	"encoding/csv"
 	"errors"
+	"fmt"
 	"github.com/introdevio/wcuploader/internal/product"
 	"io"
 	"log"
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 )
 
 type ProductLoader struct {
@@ -24,7 +26,7 @@ func NewProductLoader(csvPath, rootDir string) *ProductLoader {
 	}
 }
 
-func (pl *ProductLoader) LoadFromCsv(hasHeader bool) ([]product.Product, error) {
+func (pl *ProductLoader) LoadFromCsv(hasHeader bool) ([]product.Product, []error) {
 
 	file, err := os.Open(pl.csvPath)
 
@@ -36,28 +38,18 @@ func (pl *ProductLoader) LoadFromCsv(hasHeader bool) ([]product.Product, error) 
 	}(file)
 
 	if err != nil {
-		return nil, err
+		return nil, []error{err}
 	}
 
 	reader := csv.NewReader(file)
-	var headers []string
-	if hasHeader {
-		headers, err = reader.Read()
-		if err != nil {
-			return nil, err
-		}
+	headers, err := loadHeaders(reader, hasHeader)
+
+	if err != nil {
+		return nil, []error{err}
 	}
 
-	var products []product.Product
-	pl.tagFieldMap = make(map[string]string)
-
-	t := reflect.TypeOf(product.Product{})
-
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-		tag := field.Tag.Get("csv")
-		pl.tagFieldMap[tag] = field.Name
-	}
+	var errs []error
+	var items []product.Product
 
 	for {
 		line, err := reader.Read()
@@ -67,39 +59,77 @@ func (pl *ProductLoader) LoadFromCsv(hasHeader bool) ([]product.Product, error) 
 				log.Println("EOF")
 				break
 			}
-			log.Println("Error", err)
+			errs = append(errs, err)
 			break
 		}
 
-		p := product.Product{}
+		st := product.Product{}
+		tagFieldMap := loadFieldTagMap(st)
 		for i, value := range line {
+			reflected := reflect.ValueOf(&st).Elem()
+			tagName := strings.ToLower(headers[i])
+			if _, exists := tagFieldMap[tagName]; !exists {
+				errs = append(errs, errors.New("unknown field: "+headers[i]))
+				continue
+			}
+			field := reflected.FieldByName(tagFieldMap[tagName])
 			if value == "" {
 				continue
 			}
-			pReflect := reflect.ValueOf(&p).Elem()
-			if _, exists := pl.tagFieldMap[headers[i]]; !exists {
-				continue
-			}
-			field := pReflect.FieldByName(pl.tagFieldMap[headers[i]])
-
-			switch field.Type().String() {
-			case "string":
-				field.SetString(value)
-			case "int":
-				v, err := strconv.Atoi(value)
-				if err != nil {
-					log.Println("error converting")
-				}
-				field.SetInt(int64(v))
-			case "float32":
-				v, err := strconv.ParseFloat(value, 32)
-				if err != nil {
-					log.Println("error converting")
-				}
-				field.SetFloat(v)
+			err := setField(field, value)
+			if err != nil {
+				errs = append(errs, err)
 			}
 		}
-		products = append(products, p)
+		items = append(items, st)
 	}
-	return products, nil
+	return items, errs
+}
+
+func loadHeaders(reader *csv.Reader, hasHeader bool) ([]string, error) {
+	var headers []string
+	var err error
+	if hasHeader {
+		headers, err = reader.Read()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return headers, nil
+}
+
+func loadFieldTagMap(input any) map[string]string {
+	tagFieldMap := make(map[string]string)
+
+	t := reflect.TypeOf(input)
+
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		tag := field.Tag.Get("csv")
+		tagFieldMap[tag] = field.Name
+	}
+
+	return tagFieldMap
+}
+
+func setField(field reflect.Value, value string) error {
+	switch field.Type().String() {
+	case "string":
+		field.SetString(value)
+	case "int":
+		v, err := strconv.Atoi(value)
+		if err != nil {
+			msg := fmt.Sprintf("Error converting %s to int", value)
+			return errors.New(msg)
+		}
+		field.SetInt(int64(v))
+	case "float32":
+		v, err := strconv.ParseFloat(value, 32)
+		if err != nil {
+			msg := fmt.Sprintf("Error converting %s to float", value)
+			return errors.New(msg)
+		}
+		field.SetFloat(v)
+	}
+	return nil
 }
