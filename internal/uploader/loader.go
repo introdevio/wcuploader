@@ -14,6 +14,8 @@ import (
 	"strings"
 )
 
+var CategoryMap = map[string]int{"damas": 22, "caballeros": 23}
+
 type ProductLoader struct {
 	csvPath     string
 	rootDir     string
@@ -90,11 +92,12 @@ func (pl *ProductLoader) LoadFromPath() ([]product.Product, []error) {
 	if err != nil {
 		return nil, []error{err}
 	}
-	parentMap := make(map[string]product.Product)
+	parentMap := make(map[string]*product.Product)
 
 	// create parents or products with no variations
 	for _, file := range files {
-		category := filepath.Base(filepath.Dir(file))
+		categoryStr := filepath.Base(filepath.Dir(file))
+		category := product.Category{Id: CategoryMap[categoryStr]}
 		fileName := filepath.Base(file)
 		productFields := strings.Split(fileName, "-")
 		var sku string
@@ -104,27 +107,36 @@ func (pl *ProductLoader) LoadFromPath() ([]product.Product, []error) {
 		fullVariation := strings.Split(fullSku, "-")
 		if len(fullVariation) > 0 {
 			sku = fullVariation[0]
-			p = product.Product{
-				PostTitle:    fullSku,
+
+			v := product.Variation{
 				Sku:          fullSku,
-				Stock:        1,
+				ManageStock:  true,
 				StockStatus:  "instock",
-				Backorders:   "no",
-				RegularPrice: 45,
+				Status:       "publish",
+				RegularPrice: "45",
 			}
 			if parent, exists := parentMap[sku]; exists {
-				parent.Children = append(parent.Children, p)
+				child := false
+				for _, c := range parent.Children {
+					if c.Sku == v.Sku {
+						child = true
+					}
+				}
+				if !child {
+					parent.Children = append(parent.Children, v)
+				}
 				continue
 			} else {
-				parent = product.Product{
+				parent = &product.Product{
 					PostTitle:   sku,
 					Sku:         sku,
 					StockStatus: "instock",
 					ProductType: "variable",
-					Stock:       1,
-					Categories:  []string{category},
+					Status:      "publish",
+					Stock:       true,
+					Categories:  []product.Category{category},
 				}
-				parent.Children = []product.Product{p}
+				parent.Children = []product.Variation{v}
 				parentMap[sku] = parent
 			}
 
@@ -133,14 +145,14 @@ func (pl *ProductLoader) LoadFromPath() ([]product.Product, []error) {
 			p = product.Product{
 				PostTitle:    sku,
 				Tags:         nil,
-				Categories:   []string{category},
+				Categories:   []product.Category{category},
 				Sku:          sku,
-				Stock:        1,
+				Stock:        true,
 				StockStatus:  "instock",
-				Backorders:   "no",
-				RegularPrice: 45,
+				Status:       "publish",
+				RegularPrice: "45",
 			}
-			parentMap[sku] = p
+			parentMap[sku] = &p
 		}
 	}
 
@@ -159,19 +171,26 @@ func (pl *ProductLoader) LoadFromPath() ([]product.Product, []error) {
 			for i, _ := range children {
 				c := &children[i]
 				if c.Sku == sku {
-					c.Images = append(c.Images, file)
+					img := product.NewProductImage(file, c.Sku)
+					p.Images = append(p.Images, img)
+					c.Image = img
+					c.Attribute = []product.VariationAttribute{
+						{Option: strings.TrimSpace(productFields[1])},
+					}
 				}
 			}
 		} else {
 			p := parentMap[fullVariation[0]]
-			p.Images = append(p.Images, file)
+			img := product.NewProductImage(file, p.Sku)
+			p.Images = append(p.Images, img)
 		}
 	}
 
+	var products []product.Product
 	for _, value := range parentMap {
-		fmt.Printf("%+v\n\n\n", value)
+		products = append(products, *value)
 	}
-	return nil, nil
+	return products, nil
 }
 
 func mapLineToProduct(line []string, headers []string, errs []error) product.Product {

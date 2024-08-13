@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"github.com/introdevio/wcuploader/internal/uploader"
+	wc2 "github.com/introdevio/wcuploader/internal/wc"
 )
 
 func main() {
@@ -15,6 +15,8 @@ func main() {
 	loader := uploader.NewPathProductLoader(rootFolder)
 	result, _ := loader.Load()
 
-	fmt.Printf("%+v", result)
-
+	wc := wc2.NewWoocommerceApi(wcKey, wcSecret, url)
+	//result[0].LoadProductColorVariations()
+	wc.CreateProduct(result[0])
+	wc.GetProductById("1629")
 }
