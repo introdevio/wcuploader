@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -17,9 +18,11 @@ import (
 var CategoryMap = map[string]int{"damas": 22, "caballeros": 23}
 
 type ProductLoader struct {
-	csvPath     string
-	rootDir     string
-	tagFieldMap map[string]string
+	csvPath        string
+	rootDir        string
+	tagFieldMap    map[string]string
+	pathRegex      *regexp.Regexp
+	variationRegex *regexp.Regexp
 }
 
 func NewCSVProductLoader(csvPath, rootDir string) *ProductLoader {
@@ -30,8 +33,14 @@ func NewCSVProductLoader(csvPath, rootDir string) *ProductLoader {
 }
 
 func NewPathProductLoader(rootDir string) *ProductLoader {
+	filePathRegex, err := regexp.Compile(`/(\w+)(?:-|\s)+(\w+)(?:-|\s)+(\w+)(?:-|\s).+$`)
+	if err != nil {
+		panic(err)
+	}
+
 	return &ProductLoader{
-		rootDir: rootDir,
+		pathRegex: filePathRegex,
+		rootDir:   rootDir,
 	}
 }
 
@@ -96,95 +105,53 @@ func (pl *ProductLoader) LoadFromPath() ([]product.Product, []error) {
 
 	// create parents or products with no variations
 	for _, file := range files {
-		categoryStr := filepath.Base(filepath.Dir(file))
-		category := product.Category{Id: CategoryMap[categoryStr]}
-		fileName := filepath.Base(file)
-		productFields := strings.Split(fileName, "-")
-		var sku string
-		var p product.Product
+		fields := pl.pathRegex.FindStringSubmatch(file)
+		category := filepath.Base(file)
+		if len(fields) != 4 {
+			return nil, []error{errors.New("product does not follow right pattern")}
+		}
+		sku := fields[1]
+		colorCode := fields[2]
+		colorName := fields[3]
 
-		fullSku := strings.ReplaceAll(productFields[0], " ", "-")
-		fullVariation := strings.Split(fullSku, "-")
-		if len(fullVariation) > 0 {
-			sku = fullVariation[0]
+		v := product.Variation{
+			Sku:          sku + "-" + colorCode,
+			RegularPrice: "45",
+			Status:       "publish",
+			ManageStock:  true,
+			StockStatus:  "instock",
+			Attribute:    product.VariationAttribute{Option: colorName},
+		}
 
-			v := product.Variation{
-				Sku:          fullSku,
-				ManageStock:  true,
-				StockStatus:  "instock",
-				Status:       "publish",
-				RegularPrice: "45",
-			}
-			if parent, exists := parentMap[sku]; exists {
-				child := false
-				for _, c := range parent.Children {
-					if c.Sku == v.Sku {
-						child = true
-					}
-				}
-				if !child {
-					parent.Children = append(parent.Children, v)
-				}
-				continue
-			} else {
-				parent = &product.Product{
-					PostTitle:   sku,
-					Sku:         sku,
-					StockStatus: "instock",
-					ProductType: "variable",
-					Status:      "publish",
-					Stock:       true,
-					Categories:  []product.Category{category},
-				}
-				parent.Children = []product.Variation{v}
-				parentMap[sku] = parent
-			}
-
+		if p, exists := parentMap[sku]; exists {
+			p.Children = append(p.Children, v)
+			color := *p.Attributes[0]
+			color.Options = append(color.Options, colorName)
 		} else {
-			sku = fullSku
-			p = product.Product{
+			a := product.Attribute{
+				Name:      "Color",
+				Visible:   true,
+				Variation: true,
+				Options:   []string{colorName},
+			}
+			p = &product.Product{
 				PostTitle:    sku,
-				Tags:         nil,
-				Categories:   []product.Category{category},
+				ProductType:  "variable",
+				Categories:   []product.Category{{Id: CategoryMap[category]}},
 				Sku:          sku,
 				Stock:        true,
 				StockStatus:  "instock",
 				Status:       "publish",
 				RegularPrice: "45",
+				Images:       nil,
+				Children:     []product.Variation{v},
+				Attributes:   []*product.Attribute{&a},
 			}
-			parentMap[sku] = &p
+			parentMap[sku] = p
 		}
 	}
 
 	// load media
-
-	for _, file := range files {
-		fileName := filepath.Base(file)
-		productFields := strings.Split(fileName, "-")
-
-		sku := strings.ReplaceAll(productFields[0], " ", "-")
-		fullVariation := strings.Split(sku, "-")
-
-		if len(fullVariation) > 0 {
-			p := parentMap[fullVariation[0]]
-			children := p.Children
-			for i, _ := range children {
-				c := &children[i]
-				if c.Sku == sku {
-					img := product.NewProductImage(file, c.Sku)
-					p.Images = append(p.Images, img)
-					c.Image = img
-					c.Attribute = []product.VariationAttribute{
-						{Option: strings.TrimSpace(productFields[1])},
-					}
-				}
-			}
-		} else {
-			p := parentMap[fullVariation[0]]
-			img := product.NewProductImage(file, p.Sku)
-			p.Images = append(p.Images, img)
-		}
-	}
 
 	var products []product.Product
 	for _, value := range parentMap {

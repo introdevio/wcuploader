@@ -6,36 +6,36 @@ import (
 )
 
 type Product struct {
-	Id               int         `json:"id"`
-	PostTitle        string      `csv:"post_title" json:"name"`
-	ParentId         int         `json:"parent_id"`
-	Description      string      `csv:"description" json:"description"`
-	ShortDescription string      `csv:"short_description" json:"short_description"`
-	ProductType      string      `csv:"product_type" json:"type"`
-	Tags             []string    `csv:"tags" json:"-"`
-	Categories       []Category  `csv:"categories" json:"categories"`
-	Sku              string      `csv:"sku" json:"sku"`
-	Stock            bool        `csv:"stock" json:"stock"`
-	StockStatus      string      `csv:"stock_status" json:"stock_status"`
-	Status           string      `csv:"status" json:"status"`
-	RegularPrice     string      `csv:"regular_price" json:"regular_price"`
-	SalePrice        string      `csv:"sale_price" json:"sale_price"`
-	Images           []Image     `csv:"images" json:"images"`
-	Children         []Variation `csv:"-" json:"-"`
-	Attributes       []Attribute `json:"attributes"`
+	Id               int          `json:"id"`
+	PostTitle        string       `csv:"post_title" json:"name"`
+	ParentId         int          `json:"parent_id"`
+	Description      string       `csv:"description" json:"description"`
+	ShortDescription string       `csv:"short_description" json:"short_description"`
+	ProductType      string       `csv:"product_type" json:"type"`
+	Tags             []string     `csv:"tags" json:"-"`
+	Categories       []Category   `csv:"categories" json:"categories"`
+	Sku              string       `csv:"sku" json:"sku"`
+	Stock            bool         `csv:"stock" json:"stock"`
+	StockStatus      string       `csv:"stock_status" json:"stock_status"`
+	Status           string       `csv:"status" json:"status"`
+	RegularPrice     string       `csv:"regular_price" json:"regular_price"`
+	SalePrice        string       `csv:"sale_price" json:"sale_price"`
+	Images           []Image      `csv:"images" json:"images"`
+	Children         []Variation  `csv:"-" json:"-"`
+	Attributes       []*Attribute `json:"attributes"`
 }
 
 type Variation struct {
-	Id           int                  `json:"id"`
-	Description  string               `json:"description"`
-	Sku          string               `json:"sku"`
-	RegularPrice string               `json:"regular_price"`
-	SalePrice    string               `json:"sale_price"`
-	Status       string               `json:"status"`
-	ManageStock  bool                 `json:"manage_stock"`
-	StockStatus  string               `json:"stock_status"`
-	Image        Image                `json:"image"`
-	Attribute    []VariationAttribute `json:"attribute"`
+	Id           int                `json:"id"`
+	Description  string             `json:"description"`
+	Sku          string             `json:"sku"`
+	RegularPrice string             `json:"regular_price"`
+	SalePrice    string             `json:"sale_price"`
+	Status       string             `json:"status"`
+	ManageStock  bool               `json:"manage_stock"`
+	StockStatus  string             `json:"stock_status"`
+	Image        Image              `json:"image"`
+	Attribute    VariationAttribute `json:"attribute"`
 }
 
 type Image struct {
@@ -84,23 +84,4 @@ func (p *Product) LoadMedia(root string) {
 		}
 		p.Images = append(p.Images, img)
 	}
-}
-
-func (p *Product) LoadProductColorVariations() {
-	var colors []string
-	if len(p.Children) > 0 {
-		for _, v := range p.Children {
-			for _, c := range v.Attribute {
-				colors = append(colors, c.Option)
-			}
-		}
-	}
-
-	a := Attribute{
-		Name:      "Color",
-		Visible:   true,
-		Variation: true,
-		Options:   colors,
-	}
-	p.Attributes = []Attribute{a}
 }
