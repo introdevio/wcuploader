@@ -3,9 +3,10 @@ package wc
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/introdevio/wcuploader/internal/product"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"time"
@@ -38,39 +39,49 @@ func (wc *WoocommerceAPI) GetProductById(id string) {
 	fmt.Println(body)
 }
 
-func (wc *WoocommerceAPI) CreateProduct(p product.Product) {
+func (wc *WoocommerceAPI) CreateProduct(p Product) error {
 
-	pr, err := json.Marshal(p)
+	payload, err := json.Marshal(p)
 	if err != nil {
-		fmt.Println("Error", err)
+		return err
 	}
 
-	rs, _, err := wc.post("products", pr)
+	response, _, err := wc.post("products", payload)
+	if err != nil {
+		return err
+	}
+	var created Product
+	err = json.Unmarshal(response, &created)
+	if err != nil {
+		return err
+	}
+	log.Printf("Created Product with ID: %d\n", created.Id)
+
+	for _, v := range p.Variations {
+		for _, attr := range v.Attributes {
+			attr.Id = created.Attributes[0].Id
+		}
+	}
+	vPayload := make(map[string][]*ProductVariation)
+	vPayload["create"] = p.Variations
+	variations, err := json.Marshal(vPayload)
+
+	vResponse, _, err := wc.post(fmt.Sprintf("products/%d/variations/batch", created.Id), variations)
 
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 
-	var response product.Product
-	err = json.Unmarshal(rs, &response)
+	var result map[string][]ProductVariation
+	err = json.Unmarshal(vResponse, &result)
 
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 
-	createMap := make(map[string][]product.Variation)
+	log.Println(vResponse)
+	return nil
 
-	createMap["create"] = p.Children
-
-	pr, err = json.Marshal(createMap)
-	if err != nil {
-		fmt.Println("Error", err)
-	}
-
-	r, statusCode, _ := wc.post(fmt.Sprintf("products/%d/variations", response.Id), pr)
-	fmt.Println(string(r), statusCode)
 }
 
 func (wc *WoocommerceAPI) get(endpoint string) ([]byte, int, error) {
@@ -128,6 +139,10 @@ func (wc *WoocommerceAPI) post(endpoint string, reqBody []byte) ([]byte, int, er
 
 	if err != nil {
 		return nil, 0, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, 0, errors.New("failed the request")
 	}
 
 	fmt.Println(status, body)
