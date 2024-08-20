@@ -3,7 +3,6 @@ package wc
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -78,8 +77,6 @@ func (wc *WoocommerceAPI) CreateProduct(p Product) error {
 	if err != nil {
 		return err
 	}
-
-	log.Println(vResponse)
 	return nil
 
 }
@@ -123,6 +120,9 @@ func (wc *WoocommerceAPI) post(endpoint string, reqBody []byte) ([]byte, int, er
 	req.SetBasicAuth(wc.apiKey, wc.secretKey)
 
 	resp, err := wc.client.Do(req)
+	if err != nil {
+		return nil, 0, err
+	}
 	defer resp.Body.Close()
 
 	if err != nil {
@@ -139,10 +139,6 @@ func (wc *WoocommerceAPI) post(endpoint string, reqBody []byte) ([]byte, int, er
 
 	if err != nil {
 		return nil, 0, err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, 0, errors.New("failed the request")
 	}
 
 	fmt.Println(status, body)

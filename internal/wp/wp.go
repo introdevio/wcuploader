@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/introdevio/wcuploader/internal/product"
-	"github.com/introdevio/wcuploader/internal/wc"
 	"io"
 	"log"
 	"mime/multipart"
@@ -38,7 +37,7 @@ func (w *WordpressAPI) PostMedia(image *product.LocalImage) error {
 		return err
 	}
 
-	var img wc.Image
+	var img MediaResponse
 
 	err = json.Unmarshal(body, &img)
 
@@ -47,6 +46,7 @@ func (w *WordpressAPI) PostMedia(image *product.LocalImage) error {
 	}
 
 	image.RemoteImageId = img.Id
+	image.RemoteUrl = img.Link
 
 	if code != http.StatusCreated {
 		log.Println("Not okay", code)
@@ -156,7 +156,7 @@ func (w *WordpressAPI) postMultipart(endpoint string, media string) ([]byte, int
 
 	u, err := url.JoinPath(w.url, endpoint)
 	if err != nil {
-
+		return nil, 0, err
 	}
 	req, err := http.NewRequest("POST", u, reqBody)
 

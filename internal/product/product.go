@@ -26,6 +26,7 @@ type Color struct {
 type LocalImage struct {
 	Path          string
 	RemoteImageId int
+	RemoteUrl     string
 }
 
 func NewLocalImageFromPath(path string) LocalImage {

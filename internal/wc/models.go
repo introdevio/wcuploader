@@ -2,6 +2,8 @@ package wc
 
 import "github.com/introdevio/wcuploader/internal/product"
 
+var CategoryMap = map[string]int{"damas": 22, "caballeros": 23, "sobrelentes": 22}
+
 type Tag struct {
 	Id   int    `json:"id"`
 	Name string `json:"name"`
@@ -40,6 +42,7 @@ type Product struct {
 	StockStatus       string               `json:"stock_status,omitempty"`
 	Backorders        string               `json:"backorders,omitempty"`
 	Weight            string               `json:"weight"`
+	Categories        []Category           `json:"categories"`
 	Tags              []Tag                `json:"tags,omitempty"`
 	Images            []Image              `json:"images"`
 	Attributes        []Attribute          `json:"attributes"`
@@ -47,14 +50,20 @@ type Product struct {
 	DefaultAttributes []VariationAttribute `json:"default_attributes"`
 }
 
+type Category struct {
+	Id   int    `json:"id"`
+	Name string `json:"name,omitempty"`
+	Slug string `json:"slug,omitempty"`
+}
+
 type VariationAttribute struct {
-	Id     int    `json:"id"`
+	Id     int    `json:"id,omitempty"`
 	Name   string `json:"name"`
 	Option string `json:"option"`
 }
 
 type ProductVariation struct {
-	Id            int                  `json:"id"`
+	Id            int                  `json:"id,omitempty"`
 	Description   string               `json:"description,omitempty"`
 	Sku           string               `json:"sku"`
 	RegularPrice  string               `json:"regular_price"`
@@ -76,6 +85,12 @@ func NewProductFromProduct(p product.Product) Product {
 		images = append(images, Image{Id: img.RemoteImageId})
 	}
 	attrs := NewAttributeWithOptions("Color", colors)
+	var categories []Category
+	for _, category := range p.Categories {
+		categories = append(categories, Category{
+			Id: CategoryMap[category],
+		})
+	}
 	return Product{
 		Name:             p.Sku,
 		Type:             "variable",
@@ -85,8 +100,10 @@ func NewProductFromProduct(p product.Product) Product {
 		RegularPrice:     p.RegularPrice,
 		SalePrice:        p.SalePrice,
 		StockQuantity:    1,
+		ManageStock:      true,
 		StockStatus:      "instock",
 		Images:           images,
+		Categories:       categories,
 		Variations:       VariationsFromProduct(&p),
 		Attributes:       []Attribute{attrs},
 	}
@@ -103,7 +120,7 @@ func VariationsFromProduct(p *product.Product) []*ProductVariation {
 			Image: Image{
 				Id: v.Image.RemoteImageId,
 			},
-			Attributes: []VariationAttribute{{Option: v.Name}},
+			Attributes: []VariationAttribute{{Option: v.Name, Name: "Color"}},
 		}
 		variations = append(variations, &variation)
 	}
@@ -116,12 +133,5 @@ func NewAttributeWithOptions(name string, options []string) Attribute {
 		Visible:     true,
 		IsVariation: true,
 		Options:     options,
-	}
-}
-
-func NewVariationAttribute(id int, option string) VariationAttribute {
-	return VariationAttribute{
-		Id:     id,
-		Option: option,
 	}
 }

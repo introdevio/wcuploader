@@ -12,11 +12,7 @@ type Media struct {
 	SourceUrl     string `json:"source_url,omitempty"`
 }
 
-func NewMedia(name, author string) Media {
-	return Media{
-		Title:         name,
-		Author:        author,
-		CommentStatus: "closed",
-		PingStatus:    "closed",
-	}
+type MediaResponse struct {
+	Id   int    `json:"id,omitempty"`
+	Link string `json:"link,omitempty"`
 }

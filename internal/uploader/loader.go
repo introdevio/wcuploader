@@ -7,8 +7,6 @@ import (
 	"regexp"
 )
 
-var CategoryMap = map[string]int{"damas": 22, "caballeros": 23}
-
 type ProductLoader struct {
 	csvPath        string
 	rootDir        string
@@ -44,7 +42,7 @@ func (pl *ProductLoader) LoadFromPath() ([]product.Product, []error) {
 	// create parents or products with no variations
 	for _, file := range files {
 		fields := pl.pathRegex.FindStringSubmatch(file)
-		category := filepath.Base(file)
+		category := filepath.Base(filepath.Dir(file))
 		if len(fields) != 4 {
 			return nil, []error{errors.New("product does not follow right pattern")}
 		}
