@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/introdevio/wcuploader/internal/product"
+	"github.com/introdevio/wcuploader/internal"
 	"io"
 	"net/http"
 	"net/url"
@@ -93,7 +93,7 @@ func NewChatGptClient(apiSecret string) *Client {
 	}
 }
 
-func (c *Client) CreateShortDescription(p *product.Product) error {
+func (c *Client) CreateShortDescription(p *internal.Product) error {
 	prompt := fmt.Sprintf("Crea una description corta para este lente de categoria %s modelo %s sin incluir dimensiones y sin formato", p.Categories[0], p.Sku)
 	msg := NewMessageWithImage(prompt, p.Images[0].RemoteUrl)
 	chat := NewChatRequest([]Message{msg})
@@ -132,8 +132,8 @@ func (c *Client) CreateShortDescription(p *product.Product) error {
 	return nil
 }
 
-func (c *Client) CreateDescription(p *product.Product) error {
-	prompt := fmt.Sprintf("Crea una description detallada para este lente de categoria %s modelo %s sin incluir dimensiones y formatealo en simple html for a wordpress page and do not add markup code wrapper", p.Categories[0], p.Sku)
+func (c *Client) CreateDescription(p *internal.Product) error {
+	prompt := fmt.Sprintf("Crea una description detallada para este lente de categoria %s modelo %s sin incluir dimensiones y formatealo en simple html for a wp page and do not add markup code wrapper", p.Categories[0], p.Sku)
 	msg := NewMessageWithImage(prompt, p.Images[0].RemoteUrl)
 	chat := NewChatRequest([]Message{msg})
 	u, err := url.JoinPath(c.url, "chat/completions")

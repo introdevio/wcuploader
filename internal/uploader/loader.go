@@ -2,7 +2,7 @@ package uploader
 
 import (
 	"errors"
-	"github.com/introdevio/wcuploader/internal/product"
+	"github.com/introdevio/wcuploader/internal"
 	"path/filepath"
 	"regexp"
 )
@@ -27,17 +27,17 @@ func NewPathProductLoader(rootDir string) *ProductLoader {
 	}
 }
 
-func (pl *ProductLoader) Load() ([]product.Product, []error) {
+func (pl *ProductLoader) Load() ([]internal.Product, []error) {
 	return pl.LoadFromPath()
 }
 
-func (pl *ProductLoader) LoadFromPath() ([]product.Product, []error) {
+func (pl *ProductLoader) LoadFromPath() ([]internal.Product, []error) {
 	files, err := filepath.Glob(filepath.Join(pl.rootDir, "*", "*.jpg"))
 
 	if err != nil {
 		return nil, []error{err}
 	}
-	parentMap := make(map[string]*product.Product)
+	parentMap := make(map[string]*internal.Product)
 
 	// create parents or products with no variations
 	for _, file := range files {
@@ -49,9 +49,9 @@ func (pl *ProductLoader) LoadFromPath() ([]product.Product, []error) {
 		sku := fields[1]
 		colorCode := fields[2]
 		colorName := fields[3]
-		img := product.NewLocalImageFromPath(file)
+		img := internal.NewLocalImageFromPath(file)
 
-		v := product.Color{
+		v := internal.Color{
 			Sku:          colorCode,
 			RegularPrice: "45",
 			Name:         colorName,
@@ -63,22 +63,22 @@ func (pl *ProductLoader) LoadFromPath() ([]product.Product, []error) {
 			p.Variations[colorCode] = v
 			p.Colors[colorName] = true
 		} else {
-			a := product.Color{
+			a := internal.Color{
 				Sku:          colorCode,
 				RegularPrice: "45",
 				Name:         colorName,
 				Image:        &img,
 			}
-			variations := make(map[string]product.Color)
+			variations := make(map[string]internal.Color)
 			colors := make(map[string]bool)
 			variations[colorCode] = a
 			colors[colorName] = true
-			p = &product.Product{
+			p = &internal.Product{
 				Sku:          sku,
 				ProductType:  "variable",
 				Categories:   []string{category},
 				RegularPrice: "45",
-				Images:       []*product.LocalImage{&img},
+				Images:       []*internal.LocalImage{&img},
 				Colors:       colors,
 				Variations:   variations,
 			}
@@ -88,7 +88,7 @@ func (pl *ProductLoader) LoadFromPath() ([]product.Product, []error) {
 
 	// load media
 
-	var products []product.Product
+	var products []internal.Product
 	for _, value := range parentMap {
 		products = append(products, *value)
 	}

@@ -1,4 +1,4 @@
-package product
+package internal
 
 type Product struct {
 	Description      string
