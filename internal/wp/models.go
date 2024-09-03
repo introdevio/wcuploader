@@ -2,6 +2,7 @@ package wp
 
 import (
 	"github.com/introdevio/wcuploader/internal"
+	"strings"
 )
 
 type Media struct {
@@ -20,8 +21,6 @@ type MediaResponse struct {
 	Id   int    `json:"id,omitempty"`
 	Link string `json:"link,omitempty"`
 }
-
-var CategoryMap = map[string]int{"damas": 22, "caballeros": 23, "sobrelentes": 22}
 
 type Tag struct {
 	Id   int    `json:"id"`
@@ -93,7 +92,7 @@ type ProductVariation struct {
 	Attributes    []VariationAttribute `json:"attributes"`
 }
 
-func NewProductFromProduct(p internal.Product) Product {
+func NewProductFromProduct(p internal.Product, CategoryMap map[string]int) Product {
 	var colors []string
 	for c := range p.Colors {
 		colors = append(colors, c)
@@ -107,7 +106,7 @@ func NewProductFromProduct(p internal.Product) Product {
 	var categories []Category
 	for _, category := range p.Categories {
 		categories = append(categories, Category{
-			Id: CategoryMap[category],
+			Id: CategoryMap[strings.ToLower(category)],
 		})
 	}
 	return Product{

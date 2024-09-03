@@ -11,7 +11,6 @@ import (
 )
 
 func main() {
-	//TODO: Make code pull categories and map name to id
 	//TODO: fix instock
 	//TODO: support multiple categories
 	//TODO: support multiple attributes
@@ -53,6 +52,11 @@ func main() {
 	}
 	wp2 := wp.NewWordpressAPI(wordpressUser, wordpressKey, woocommerceKey, woocommerceSecret, url)
 	gpt := chatgpt.NewChatGptClient(chatgptSecret)
+	categoryMap, e := wp2.GetCategories()
+
+	if e != nil {
+		log.Fatal(e)
+	}
 
 	for _, p := range result {
 		for _, img := range p.Images {
@@ -71,7 +75,7 @@ func main() {
 		if e != nil {
 			log.Fatal(err)
 		}
-		product := wp.NewProductFromProduct(p)
+		product := wp.NewProductFromProduct(p, categoryMap)
 		e = wp2.CreateProduct(product)
 		if e != nil {
 			log.Fatal(e)

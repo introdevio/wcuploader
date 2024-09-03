@@ -16,7 +16,7 @@ type wordpressHttpClient struct {
 	url    string
 }
 
-func (w *wordpressHttpClient) CreateRequest(method, endpoint string, buffer *bytes.Buffer) (*http.Request, error) {
+func (w *wordpressHttpClient) CreateRequest(method, endpoint string, buffer io.Reader) (*http.Request, error) {
 	fullUrl, err := url.JoinPath(w.url, endpoint)
 	if err != nil {
 		return nil, err

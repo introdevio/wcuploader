@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
+	"strings"
 )
 
 type WordpressAPI struct {
@@ -32,11 +33,42 @@ func NewWordpressAPI(user, password, woocommerceKey, woocommerceSecret, apiUrl s
 	}
 }
 
+func (w *WordpressAPI) GetCategories() (map[string]int, error) {
+	req, err := w.client.CreateRequest(http.MethodGet, "wc/v3/products/categories", nil)
+
+	if err != nil {
+		return nil, err
+	}
+	req.URL.Query().Add("per_page", "100")
+	req.SetBasicAuth(w.woocommerceKey, w.woocommerceSecret)
+
+	resp, _, err := w.client.Execute(req)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var categories []Category
+	err = json.Unmarshal(resp, &categories)
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]int)
+	for _, category := range categories {
+		result[strings.ToLower(category.Name)] = category.Id
+	}
+
+	return result, nil
+}
+
 func (w *WordpressAPI) GetProductById(id string) (*Product, error) {
 	req, err := w.client.CreateRequest(http.MethodGet, "wc/v3/products/"+id, nil)
 	if err != nil {
 		return nil, err
 	}
+	req.SetBasicAuth(w.woocommerceKey, w.woocommerceSecret)
 	response, status, err := w.client.Execute(req)
 	if err != nil {
 		return nil, err
@@ -140,6 +172,7 @@ func (w *WordpressAPI) PostMedia(image *internal.LocalImage) error {
 	if err != nil {
 		return err
 	}
+	req.SetBasicAuth(w.user, w.password)
 	req.Header.Add("Content-Type", contentType)
 	response, status, err := w.client.Execute(req)
 
@@ -163,9 +196,11 @@ func (w *WordpressAPI) PostMedia(image *internal.LocalImage) error {
 
 func (w *WordpressAPI) ListMedia() ([]MediaResponse, error) {
 	req, err := w.client.CreateRequest(http.MethodGet, "/wp/v2/media", nil)
+
 	if err != nil {
 		return nil, err
 	}
+	req.SetBasicAuth(w.user, w.password)
 	response, status, err := w.client.Execute(req)
 
 	if err != nil {
